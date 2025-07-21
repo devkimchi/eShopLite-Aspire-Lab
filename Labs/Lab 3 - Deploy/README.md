@@ -10,73 +10,72 @@ Before deploying the application, we'll need to update some code to make sure it
 
 You'll need to add the `WithExternalHttpEndpoints` method to the store project to do so.
 
-1. Open the eShopLite solution from the **Labs/Lab 3** directory. This should looks exactly like you left the solution in Lab 2. Or you can continue working with the solution you have been before.
-1. Open the **eShopLite.AppHost\Program.cs** file and find the following line:
+1. Get the repository root.
+
+    ```bash
+    # bash/zsh
+    REPOSITORY_ROOT=$(git rev-parse --show-toplevel)
+    ```
+
+    ```powershell
+    # PowerShell
+    $REPOSITORY_ROOT = git rev-parse --show-toplevel
+    ```
+
+1. Navigate to Lab 3.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 3 - Deploy"
+    ```
+
+1. Open the `AppHost.cs` file from the **eShopLite.AppHost** project.
+1. Add `.WithExternalHttpEndpoints()` to the **Projects.Store** resource.
 
     ```csharp
     builder.AddProject<Projects.Store>("store")
-        .WithReference(products)
-        .WithReference(redis);
+           // 👇👇👇 Add 👇👇👇
+           .WithExternalHttpEndpoints()
+           // 👆👆👆 Add 👆👆👆
+           .WithReference(products)
+           .WithReference(redis);
     ```
 
-1. Add `.WithExternalHttpEndpoints()` right above the `.WithReference(products)` line:
-
-    ```csharp
-    builder.AddProject<Projects.Store>("store")
-        // Add this line 👇
-        .WithExternalHttpEndpoints()
-        // Add this line 👆
-        .WithReference(products)
-        .WithReference(redis);
-    ```
-
-    This will make sure the store app is exposed to the public Internet. Now we can get ready to create our Azure resources and deploy the application.
-
-## Update or install the Azure Developer CLI
-
-First you'll need to be sure to have the latest version of the Azure Developer CLI installed. You can use winget to do that.
-
-If you already have the Azure Developer CLI installed, you can upgrade it using winget:
-
-```powershell
-winget upgrade Microsoft.Azd
-```
-
-If you don't already have the Azure Developer CLI installed, you can install it using winget:
-
-```powershell
-winget install Microsoft.Azd
-```
+   This will make sure the store app is exposed to the public Internet. Now we can get ready to create our Azure resources and deploy the application.
 
 ## Login to Azure
 
 1. Open a terminal and run the following command to login to Azure:
 
-    ```powershell
+    ```bash
     azd auth login
     ```
 
 ## Initialize the deployment environment
 
-1. Make sure your terminal is in a directory that contains the **eShopLite.sln** file. Whether it's the directory you've been making all the changes in, or **Labs\Lab 3 - Deploy**, you need to be at the same level as the solution file.
+1. Make sure you're still in Lab 3.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 3 - Deploy"
+    ```
+
 1. Run the following command to initialize the deployment environment:
 
-    ```powershell
+    ```bash
     azd init
     ```
 
 1. The Azure Developer CLI will prompt you with several questions. Answer them as follows:
 
    - `? How do you want to initialize your app?`
-     - `> Use code in the current directory`
+     - `> Scan current directory`
    - `? Select an option`
      - `> Confirm and continue initializing my app`
-   - `? Enter a new environment name`
+   - `? Enter a unique environment name`
      - `<RANDOM_NAME>`
 
    > **Note**:
    >
-   > Replace `<RANDOM_NAME>` with your preferred environment name. Use something that will be easy to remember and distinct in your environment. If you're running this in the Build lab, you could use your initials followed by "lab" followed by the time. For example, `ms-lab-1330`.
+   > Replace `<RANDOM_NAME>` with your preferred environment name. Use something that will be easy to remember and distinct in your environment. For example, `eshoplite-1234`.
 
 1. Now go back to the directory and confirm the following files have been generated:
 
@@ -97,7 +96,7 @@ winget install Microsoft.Azd
     azd up
     ```
 
-1. Again, azd will prompt you with several questions. Answer them as follows:
+1. Again, `azd` will prompt you with several questions. Answer them as follows:
 
    - `? Select an Azure Subscription to use:`
      - `> <AZURE_SUBSCRIPTION>`
@@ -110,7 +109,7 @@ winget install Microsoft.Azd
    >
    > Replace `<AZURE_SUBSCRIPTION>` and `<AZURE_LOCATION>` with your Azure subscription and location.
 
-1. Now azd will provision the Azure resources your application need and deploy your app to those resources. All from a single command! Wait for the deployment to complete. It may take a few minutes.
+1. Now `azd` will provision the Azure resources your application need and deploy your app to those resources. All from a single command! Wait for the deployment to complete. It may take a few minutes.
 1. Once the deployment is over, go to the Azure Portal and navigate to the resource group of `rg-<RANDOM_NAME>` and find the Azure Container Apps instances.
 
    ![Lab 3 Deploy - results](./images/lab03-01.png)
@@ -133,14 +132,13 @@ winget install Microsoft.Azd
 
 ## Analyze the provisioning
 
-That might have seemed like magic, but we can have azd explain what it did by creating Bicep files for the resources it provisioned. This way we could put those infrastructure files in source control.
+That might have seemed like magic, but we can have `azd` explain what it did by creating Bicep files for the resources it provisioned. This way we could put those infrastructure files in source control.
 
 1. Switch back to the terminal.
 1. Then you can generate the Bicep files by running the following commands:
 
     ```powershell
-    azd config set alpha.infraSynth on
-    azd infra synth
+    azd infra gen
     ```
 
 1. Confirm the following files have been generated:
@@ -153,12 +151,21 @@ That might have seemed like magic, but we can have azd explain what it did by cr
 
 ## Analyze the deployment
 
-When using azd outside of .NET Aspire, you have to specify which applications you want to deploy. But azd automatically detects the applications for you with .NET Aspire-based projects. You can still see what azd is deploying by generating a manifest file.
+When using `azd` outside of .NET Aspire, you have to specify which applications you want to deploy. But `azd` automatically detects the applications for you with .NET Aspire-based projects. You can still see what `azd` is deploying by generating a manifest file.
 
 1. From the terminal run:
 
     ```bash
-    dotnet run --project eShopLite.AppHost/eShopLite.AppHost.csproj `
+    # bash/zsh
+    dotnet run --project ./eShopLite.AppHost \
+        -- \
+        --publisher manifest \
+        --output-path ../aspire-manifest.json
+    ```
+
+    ```powershell
+    # PowerShell
+    dotnet run --project ./eShopLite.AppHost `
         -- `
         --publisher manifest `
         --output-path ../aspire-manifest.json
@@ -173,7 +180,7 @@ When using azd outside of .NET Aspire, you have to specify which applications yo
 1. To delete all the resources created by the deployment, you can execute the following command:
 
     ```powershell
-    azd down
+    azd down --force --purge
     ```
 
 ---
