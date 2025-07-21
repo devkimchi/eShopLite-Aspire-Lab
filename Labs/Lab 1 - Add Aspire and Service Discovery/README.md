@@ -131,7 +131,8 @@ Service discovery is a way for developers to use logical names instead of physic
     var products = builder.AddProject<Projects.Products>("products");
 
     builder.AddProject<Projects.Store>("store")
-           .WithReference(products);
+           .WithReference(products)
+           .WaitFor(products);
     // 👆👆👆 Add 👆👆👆
 
     builder.Build().Run();

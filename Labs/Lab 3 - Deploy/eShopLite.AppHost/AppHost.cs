@@ -6,6 +6,8 @@ var products = builder.AddProject<Projects.Products>("products");
 
 builder.AddProject<Projects.Store>("store")
        .WithReference(products)
-       .WithReference(redis);
+       .WithReference(redis)
+       .WaitFor(products)
+       .WaitFor(redis);
     
 builder.Build().Run();

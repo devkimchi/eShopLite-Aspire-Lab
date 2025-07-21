@@ -3,7 +3,6 @@ using Store.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<ProductService>();
 builder.Services.AddHttpClient<ProductService>(c =>
 {
     var url = builder.Configuration["ProductEndpoint"] ?? throw new InvalidOperationException("ProductEndpoint is not set");
@@ -13,7 +12,7 @@ builder.Services.AddHttpClient<ProductService>(c =>
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+                .AddInteractiveServerComponents();
 
 var app = builder.Build();
 
@@ -31,6 +30,6 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+   .AddInteractiveServerRenderMode();
 
 app.Run();

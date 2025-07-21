@@ -1,8 +1,9 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
 
-name: Lab 4 - Data
+name: lab4-data
+
 services:  
   app:
     language: dotnet
-    project: .\eShopLite.AppHost\eShopLite.AppHost.csproj
+    project: ./eShopLite.AppHost/eShopLite.AppHost.csproj
     host: containerapp

@@ -4,9 +4,9 @@ using Store.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
 builder.AddRedisOutputCache("redis");
 
-builder.Services.AddSingleton<ProductService>();
 builder.Services.AddHttpClient<ProductService>(c =>
 {
     c.BaseAddress = new("https+http://products");
@@ -14,7 +14,7 @@ builder.Services.AddHttpClient<ProductService>(c =>
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+                .AddInteractiveServerComponents();
 
 var app = builder.Build();
 
@@ -36,6 +36,6 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+   .AddInteractiveServerRenderMode();
 
 app.Run();

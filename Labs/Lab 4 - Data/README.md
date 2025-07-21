@@ -2,30 +2,57 @@
 
 .NET Aspire makes it very easy to add a database to your applications. Many SQL-compliant database are already available as .NET Aspire components. In this lab, you will add postgreSQL (or mysql). (This will be optional during the in-person portion of the workshop at Build.)
 
-## Adding a PostgreSQL database
+## Adding PostgreSQL database to **eShopLite.AppHost**
 
-1. Open the eShopLite solution from the Labs/Lab 4. This should looks exactly like you left the solution in Lab 3. Or you can continue working with the solution you have been before.
-1. Right click on the project **eShopLite.AppHost** and select  **Add > .NET Aspire Package.**
-1. In the search bar, at the top left of the Nuget Package Manager, type **Aspire.Hosting.PostgreSQL**. Select the component and click the install button.
+1. Get the repository root.
 
-    ![Add Aspire.Hosting.PostgreSQL](./images/add-hosting-postgres.png)
+    ```bash
+    # bash/zsh
+    REPOSITORY_ROOT=$(git rev-parse --show-toplevel)
+    ```
 
-1. Open the **Program.cs** file from the **eShopLite.AppHost** project.
+    ```powershell
+    # PowerShell
+    $REPOSITORY_ROOT = git rev-parse --show-toplevel
+    ```
+
+1. Navigate to Lab 4.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 4 - Data"
+    ```
+
+1. Add the **Aspire.Hosting.PostgreSQL** package to the **eShopLite.AppHost** project.
+
+    ```bash
+    dotnet add ./eShopLite.AppHost package Aspire.Hosting.PostgreSQL
+    ```
+
+1. Open the `AppHost.cs` file from the **eShopLite.AppHost** project.
 1. Let's create a database and passes it to the product API by updating the code. Here save the resource in the variable `productsdb`, and pass it to the `products` using the `WithReference` method.
 
     ```csharp
+    var redis = builder.AddRedis("redis");
+
+    // 👇👇👇 Add 👇👇👇
     var productsdb = builder.AddPostgres("pg")
                             .AddDatabase("productsdb");
+    // 👆👆👆 Add 👆👆👆
 
     var products = builder.AddProject<Projects.Products>("products")
-        .WithReference(productsdb);
+                          // 👇👇👇 Add 👇👇👇
+                          .WithReference(productsdb)
+                          .WaitFor(productsdb);
+                          // 👆👆👆 Add 👆👆👆
     ```
 
 1. Some of the .NET Aspire database components also allow you to create a container for database management tools. To add **PgAdmin** to your solution to manage the PostgreSQL database, use this code:
 
     ``` csharp
     var productsdb = builder.AddPostgres("pg")
+                            // 👇👇👇 Add 👇👇👇
                             .WithPgAdmin()
+                            // 👆👆👆 Add 👆👆👆
                             .AddDatabase("productsdb");
     ```
 
@@ -33,51 +60,72 @@ The advantage of letting .NET Aspire create the container is that you don't need
 
 ## Configure Product API to use a PostgreSQL database
 
-1. Right click on the project **Product** and select  **Add > .NET Aspire Package**.
-1. In the search bar, at the top left of the Nuget Package Manager, type **Aspire.Npgsql.EntityFrameworkCore.PostgreSQL**. Select the component and click the install button. We are using this one because the solution uses Entity Framework; otherwise the component **Aspire.Npgsql** would be used.
+1. Make sure you're still in Lab 4.
 
-    ![Add Aspire.Npgsql.EntityFrameworkCore.PostgreSQL](./images/add-postgres-ef.png)
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 4 - Data"
+    ```
 
-1. Click the **I accept** button to accept the license agreement.
-1. Open the file **appsettings.json** and remove the `ConnectionStrings` section completely. It should look like this with it removed:
+1. Add the **Aspire.Hosting.PostgreSQL** package to the **Products** project.
+
+    ```bash
+    dotnet add ./Products package Aspire.Npgsql.EntityFrameworkCore.PostgreSQL
+    ```
+
+1. Open the `appsettings.json` file from the **Products** project and remove the `ConnectionStrings` section completely. It should look like this with it removed:
 
     ``` json
     {
-        "Logging": {
-            "LogLevel": {
-                "Default": "Information",
-                "Microsoft.AspNetCore": "Warning"
-            }
-        },
-        "AllowedHosts": "*"
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "AllowedHosts": "*"
     }
     ```
 
-1. Open the **Program.cs** and remove the entire command that starts with `builder.Services.AddDbContext<ProductDataContext>(options....`.
-1. Where the previous command was, add the following code to add the Context from the database declared in the eShopLite.AppHost project using the same string "productsdb".
+1. Open the `Program.cs` file from the **Products** project and replace the following lines of codes.
 
-    ``` csharp
+    ```csharp
+    // Before
+    builder.Services.AddDbContext<ProductDataContext>(options =>
+        options.UseSqlite(builder.Configuration.GetConnectionString("ProductsContext") ?? throw new InvalidOperationException("Connection string 'ProductsContext' not found.")));
+
+    // After
     builder.AddNpgsqlDbContext<ProductDataContext>("productsdb");
     ```
 
+   It completely replaces the existing SQLite database with PostgreSQL database declared in the **eShopLite.AppHost** project using the same string `productsdb`.
+
 ## Explore the .NET Aspire dashboard
 
-Let's test it:
+Let's test the whole application.
 
-1. In Visual Studio, to start the app, press `F5` or **select Debug > Start Debugging**.
+1. Make sure Docker Desktop is up and running
+1. Make sure you're still in Lab 4.
 
-    > If Docker is not running, you will be prompted to start it.
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 4 - Data"
+    ```
+
+1. Run the .NET Aspire app.
+
+    ```bash
+    dotnet watch run --project ./eShopLite.AppHost
+    ```
 
 1. When the .NET Aspire dashboard appears, note the you have many more resources.
 
     ![Dashboard with PostgreSQL](./images/dashboard-with-postgres.png)
 
    > **NOTE**: You may be asked to enter an authentication token to access to the dashboard.
-   > 
+   >
    > ![.NET Aspire dashboard login](./images/login.png)
-   > 
+   >
    > The token can be found in the terminal console. Copy and paste it to the field and click "Log in".
-   > 
+   >
    > ![.NET Aspire dashboard access token](./images/console-token.png)
 
 1. Click on the **pg-pgadmin** resource, a new tab will open with the pgAdmin website. It can takes a few seconds to completely load.
@@ -107,7 +155,7 @@ Let's test it:
 To delete all the resources created by the deployment, in Lab 3, you can execute the following command:
 
 ```powershell
-azd down
+azd down --force --purge
 ```
 
 ---
