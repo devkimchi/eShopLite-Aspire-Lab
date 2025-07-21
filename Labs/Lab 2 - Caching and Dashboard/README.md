@@ -24,65 +24,106 @@ Redis is a popular choice for caching in a cloud-native application. In particul
 
 ### .NET Aspire Components
 
-We'll use .NET Apsire components to add Redis caching to the eShopLite application..NET Aspire components are a curated suite of NuGet packages specifically selected to facilitate the integration of cloud-native applications with prominent services and platforms such as Redis. .NET Aspire components handle many cloud-native concerns for you through standardized configuration patterns, such as adding health checks and telemetry.
+We'll use .NET Aspire components to add Redis caching to the eShopLite application. .NET Aspire components are a curated suite of NuGet packages specifically selected to facilitate the integration of cloud-native applications with prominent services and platforms such as Redis. .NET Aspire components handle many cloud-native concerns for you through standardized configuration patterns, such as adding health checks and telemetry.
 
-### Adding Redis to the eShopLite application
+### Adding Redis to **eShopLite.AppHost**
 
-1. Open the eShopLite solution from the Labs/Lab 2 folder. This should looks exactly like you left the solution in Lab 1.
-1. Right click on the project **eShopLite.AppHost** and select  Add > .NET Aspire Package.
+1. Get the repository root.
 
-    ![Add .NET Aspire Package](images/add-aspire-package.png)
+    ```bash
+    # bash/zsh
+    REPOSITORY_ROOT=$(git rev-parse --show-toplevel)
+    ```
 
-1. In the search bar, at the top left of the NuGet Package Manager, type **Aspire.Hosting.Redis**. Select the component and click the install button.
+    ```powershell
+    # PowerShell
+    $REPOSITORY_ROOT = git rev-parse --show-toplevel
+    ```
 
-    ![Add Aspire.Hosting.Redis](images/add-aspire-hosting-redis.png)
+1. Navigate to Lab 2.
 
-1. Click the **I accept** button to accept the license agreement.
-1. Open the **Program.cs** file from the **eShopLite.AppHost** project.
-1. Let's create a `RedisResource` object by adding the following code just after the **builder** object is created.
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 2 - Caching and Dashboard"
+    ```
+
+1. Add the **Aspire.Hosting.Redis** package to the **eShopLite.AppHost** project.
+
+    ```bash
+    dotnet add ./eShopLite.AppHost package Aspire.Hosting.Redis
+    ```
+
+1. Open the `AppHost.cs` file from the **eShopLite.AppHost** project.
+1. Add the following line of code just beneath the `var builder = DistributedApplication.CreateBuilder(args);` line.
 
     ``` csharp
     var builder = DistributedApplication.CreateBuilder(args);
-    
+
+    // 👇👇👇 Add 👇👇👇
     // Create the RedisResource object
     var redis = builder.AddRedis("redis");
+    // 👆👆👆 Add 👆👆👆
     ```
 
-1. Now add another reference to the **Projects.AppHost** declaration (or the `ProjectResource` object we're creating for the store) to add the Redis reference.
+1. Now add another reference to the **Projects.Store** declaration (or the `ProjectResource` object we're creating for the store) to add the Redis reference.
 
     ``` csharp
+    // Before
     builder.AddProject<Projects.Store>("store")
-        .WithReference(products)
-        .WithReference(redis);
+           .WithReference(products);
+
+    // After
+    builder.AddProject<Projects.Store>("store")
+           .WithReference(products)
+           .WithReference(redis);
     ```
 
 Now we have a Redis resource that we can use in our application. Let's add a cache to the store website.
 
-1. Right click on the project **Store** and select  Add > .NET Aspire Package.
-1. In the search bar, at the top left of the NuGet Package Manager, type **Aspire.StackExchange.Redis.OutputCache**. Select the component and click the install button.
+### Adding Redis to **Store**
 
-    ![Add Aspire.StackExchange.Redis.OutputCache](images/add-aspire-stackexchange-redis-outputcache.png)
+1. Make sure you're still in Lab 2.
 
-1. Click the **I accept** button to accept the license agreement.
-1. Open the **Program.cs** file from the **Store** project.
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 2 - Caching and Dashboard"
+    ```
+
+1. Add the **Aspire.StackExchange.Redis.OutputCaching** package to the **Store** project.
+
+    ```bash
+    dotnet add ./Store package Aspire.StackExchange.Redis.OutputCaching
+    ```
+
+1. Open the `Program.cs` file from the **Store** project.
 1. Just after the `builder` is created, add the following code to add the Redis Output Cache.
 
     ``` csharp
+    var builder = WebApplication.CreateBuilder(args);
+
+    // 👇👇👇 Add 👇👇👇
     builder.AddRedisOutputCache("redis");
+    // 👆👆👆 Add 👆👆👆
     ```
 
-    Notice how we're referring to the redis cache as `"redis"`, the same name we gave it when we created the `RedisResource` object in the **Program.cs** file of the **eShopLite.AppHost** project.
+    Notice how we're referring to the redis cache as `"redis"`, the same name we gave it when we created the `RedisResource` object in the `AppHost.cs` file of the **eShopLite.AppHost** project.
 
 1. Now to add the caching middleware to the request pipeline add the following code just after the `app` is created.
 
     ``` csharp
+    var app = builder.Build();
+
+    // 👇👇👇 Add 👇👇👇
     app.UseOutputCache();
+    // 👆👆👆 Add 👆👆👆
     ```
 
-1. To cache the products list, open the **Products.razor** file from the **Components > Pages** folder. Add the following code to the top of the file, after the last `@attribute` command.
+1. To cache the products list, open the `Products.razor` file from the **Components/Pages** folder. Add the following code to the top of the file, after the last `@attribute` command.
 
     ``` csharp
+    @attribute [StreamRendering(true)]
+
+    @* 👇👇👇 Add 👇👇👇 *@
     @attribute [Microsoft.AspNetCore.OutputCaching.OutputCache(Duration = 10)]
+    @* 👆👆👆 Add 👆👆👆 *@
     ```
 
 Now, when you run the application, the products list will be cached for 10 seconds. You can change the duration to see the effect of the cache. The first time you access the page, the products list will be retrieved from the database. The next time you access the page within the cache duration, the products list will be retrieved from the cache.
@@ -93,18 +134,29 @@ The .NET Aspire dashboard allows you to closely track various aspects of your ap
 
 Let's see the effect of our caching implementation in the .NET Aspire dashboard.
 
-1. In Visual Studio, to start the app, press `F5` or **select Debug > Start Debugging**.
-    > If Docker is not running, you will either be prompted to start it or receive an exception indicating that it needs to be started.
+1. Make sure Docker Desktop is up and running
+1. Make sure you're still in Lab 2.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 2 - Caching and Dashboard"
+    ```
+
+1. Run the .NET Aspire app.
+
+    ```bash
+    dotnet watch run --project ./eShopLite.AppHost
+    ```
+
 1. When the .NET Aspire dashboard appears, note the you have now three resources: **store**, **products**, and **redis**. Redis is Type is **Container**.
 
     ![Dashboard Resources](images/dashboard-resources.png)
 
    > **NOTE**: You may be asked to enter an authentication token to access to the dashboard.
-   > 
+   >
    > ![.NET Aspire dashboard login](./images/login.png)
-   > 
+   >
    > The token can be found in the terminal console. Copy and paste it to the field and click "Log in".
-   > 
+   >
    > ![.NET Aspire dashboard access token](./images/console-token.png)
 
 1. Click on the store the endpoints, a new tab will open with the store website.
@@ -128,7 +180,8 @@ Let's see the effect of our caching implementation in the .NET Aspire dashboard.
 
     ![Dashboard with the second request made the caching enabled](images/dashboard-redis-details.png)
 
-1. Try a few more time with-in or out the 10 second limit that was set in the **Products.razor** page.
+1. Try a few more time within or after the 10 second limit that was set in the **Products.razor** page.
+1. Stop all apps by typing `CTRL`+`C` in the terminal
 
 ---
 

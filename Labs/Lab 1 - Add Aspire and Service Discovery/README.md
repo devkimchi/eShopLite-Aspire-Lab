@@ -70,32 +70,32 @@ Let's add in .NET Aspire to the eShopLite application with an eye towards enabli
     cd "$REPOSITORY_ROOT/Labs/Lab 1 - Add Aspire and Service Discovery"
     ```
 
-1. Add two .NET Aspire projects - `eShopList.AppHost` and `eShopLit.ServiceDefaults`.
+1. Add two .NET Aspire projects - `eShopLite.AppHost` and `eShopLit.ServiceDefaults`.
 
     ```bash
-    dotnet new aspire-apphost -n eShopList.AppHost
-    dotnet new aspire-servicedefaults -n eShopList.ServiceDefaults
+    dotnet new aspire-apphost -n eShopLite.AppHost
+    dotnet new aspire-servicedefaults -n eShopLite.ServiceDefaults
     ```
 
 1. Add `eShopLit.ServiceDefaults` to existing `Products` and `Store` app as a reference.
 
     ```bash
-    dotnet add ./Products reference ./eShopList.ServiceDefaults
-    dotnet add ./Store reference ./eShopList.ServiceDefaults
+    dotnet add ./Products reference ./eShopLite.ServiceDefaults
+    dotnet add ./Store reference ./eShopLite.ServiceDefaults
     ```
 
-1. Add both `Products` and `Store` app to `eShopList.AppHost` as references.
+1. Add both `Products` and `Store` app to `eShopLite.AppHost` as references.
 
     ```bash
-    dotnet add ./eShopList.AppHost reference ./Products
-    dotnet add ./eShopList.AppHost reference ./Store
+    dotnet add ./eShopLite.AppHost reference ./Products
+    dotnet add ./eShopLite.AppHost reference ./Store
     ```
 
-1. Add both `eShopList.AppHost` and `eShopLit.ServiceDefaults` to solution.
+1. Add both `eShopLite.AppHost` and `eShopLit.ServiceDefaults` to solution.
 
     ```bash
-    dotnet sln add ./eShopList.AppHost
-    dotnet sln add ./eShopList.ServiceDefaults
+    dotnet sln add ./eShopLite.AppHost
+    dotnet sln add ./eShopLite.ServiceDefaults
     ```
 
 The **AppHost** and **ServiceDefaults** projects are the core of every .NET Aspire application. The **AppHost** project is the entry point and is responsible for acting as the orchestrator. The **ServiceDefaults** project contains the default configuration for the application. These configurations are reused across all the projects in your solution.
@@ -114,6 +114,12 @@ Now we need to make sure that the **Store** can discover the **Products** backen
 ## Enabling service discovery
 
 Service discovery is a way for developers to use logical names instead of physical addresses (IP address and port) to refer to external services. So instead of having to know the IP address and port of the **Products** backend, the **Store** can refer to it by its logical name, for example `products`.
+
+1. Make sure you're still in Lab 1.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 1 - Add Aspire and Service Discovery"
+    ```
 
 1. Open the `AppHost.cs` file from the **eShopLite.AppHost** project.
 1. Add the following code lines between `var builder = DistributedApplication.CreateBuilder(args);` and `builder.Build().Run();`
@@ -217,10 +223,21 @@ Service discovery is a way for developers to use logical names instead of physic
 
    > The **Products** backend is now referred as `products` because the **AppHost** project has already orchestrated it.
 
+.NET Aspire integration has now been completed. Let's run the dashboard app.
+
+## Exploring .NET Aspire dashboard
+
+1. Make sure Docker Desktop is up and running
+1. Make sure you're still in Lab 1.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 1 - Add Aspire and Service Discovery"
+    ```
+
 1. Run the command to open the application.
 
     ```bash
-    dotnet watch run --project ./eShopList.AppHost
+    dotnet watch run --project ./eShopLite.AppHost
     ```
 
 1. The Aspire dashboard appears.
