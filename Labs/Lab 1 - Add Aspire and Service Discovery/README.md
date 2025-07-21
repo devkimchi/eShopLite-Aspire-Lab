@@ -6,18 +6,47 @@ In this lab, you will add the .NET Aspire library to an existing .NET Core appli
 
 First let's run the eShopLite application to see what it looks like before adding Aspire.
 
-1. Open Visual Studio 2022.
-1. Open the **eShopLite** solution from the **Labs/Lab 1 - Add Aspire and Service Discovery** folder.
-1. Right click on the solution node in Solution Explorer and select **Configure Startup Projects**. Select **Multiple startup projects** and set the **Products** and **Store** projects to **Start**. Click OK.
+1. Get the repository root.
 
-    ![Configure Startup Projects](images/configure-startup-projects.png)
+    ```bash
+    # bash/zsh
+    REPOSITORY_ROOT=$(git rev-parse --show-toplevel)
+    ```
 
-1. Press **F5** or the **Start** button to start debugging the application.
+    ```powershell
+    # PowerShell
+    $REPOSITORY_ROOT = git rev-parse --show-toplevel
+    ```
+
+1. Navigate to Lab 1.
+
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 1 - Add Aspire and Service Discovery"
+    ```
+
+1. Build the solution.
+
+    ```bash
+    dotnet restore && dotnet build
+    ```
+
+1. Run the Product API app.
+
+    ```bash
+    dotnet watch run --project ./Products
+    ```
+
+1. Run the store app in another terminal.
+
+    ```bash
+    dotnet watch run --project ./Store
+    ```
+
 1. Two web browsers will open, one for the **Products** project and one for the **Store** project. The products browser will show a JSON representation of all the products. The store browser will show a web page, click on the **Products** link to see the products displayed.
 
     ![eShopLite](images/eshoplite-products.png)
 
-1. Close the web browsers to stop debugging the applications.
+1. Stop both apps by typing `CTRL`+`C` in the terminal.
 
 The **Products** project is a backend service that provides a list of products. The **Store** project is a frontend web application that displays the products from the **Products** project. Both of these can be thought of as microservices and it's easy to imagine adding additional microservices to the application, for example a **Cart** microservice.
 
@@ -35,40 +64,50 @@ Let's add in .NET Aspire to the eShopLite application with an eye towards enabli
 
 ## Adding .NET Aspire to the eShopLite application
 
-1. Back in Visual Studio, right-click the **Store** project, select **Add**, and then select **.NET Aspire Orchestrator Support** and then select **Ok**.
+1. Make sure you're still in Lab 1.
 
-    ![Add Aspire to Store](images/add-aspire-to-store.png)
-
-1. 2 new projects will be added to the solution:
-    * **eShopLite.AppHost**
-    * **eShopLite.ServiceDefaults**
-
-    > The **AppHost** and **ServiceDefaults** projects are the core of every .NET Aspire application. The **AppHost** project is the entry point and is responsible for acting as the orchestrator.
-    >
-    > The **ServiceDefaults** project contains the default configuration for the application. These configurations are reused across all the projects in your solution.
-
-1. Open the **Program.cs** file from the **eShopLite.AppHost** project.
-1. Notice the following line of code which adds the **Store** project the the Aspire orchestration:
-
-    ```csharp
-    builder.AddProject<Projects.Store>("store");
+    ```bash
+    cd "$REPOSITORY_ROOT/Labs/Lab 1 - Add Aspire and Service Discovery"
     ```
 
-1. To add the **Products** project to the Aspire orchestration, right click on the **Products** project, select **Add**, and then select **.NET Aspire Orchestrator Support**.
+1. Add two .NET Aspire projects - `eShopList.AppHost` and `eShopLit.ServiceDefaults`.
 
-    > A warning will appear indicating that the solution already has Aspire support. Select **Yes** to add the project to the orchestration.
+    ```bash
+    dotnet new aspire-apphost -n eShopList.AppHost
+    dotnet new aspire-servicedefaults -n eShopList.ServiceDefaults
+    ```
+
+1. Add `eShopLit.ServiceDefaults` to existing `Products` and `Store` app as a reference.
+
+    ```bash
+    dotnet add ./Products reference ./eShopList.ServiceDefaults
+    dotnet add ./Store reference ./eShopList.ServiceDefaults
+    ```
+
+1. Add both `Products` and `Store` app to `eShopList.AppHost` as references.
+
+    ```bash
+    dotnet add ./eShopList.AppHost reference ./Products
+    dotnet add ./eShopList.AppHost reference ./Store
+    ```
+
+1. Add both `eShopList.AppHost` and `eShopLit.ServiceDefaults` to solution.
+
+    ```bash
+    dotnet sln add ./eShopList.AppHost
+    dotnet sln add ./eShopList.ServiceDefaults
+    ```
+
+The **AppHost** and **ServiceDefaults** projects are the core of every .NET Aspire application. The **AppHost** project is the entry point and is responsible for acting as the orchestrator. The **ServiceDefaults** project contains the default configuration for the application. These configurations are reused across all the projects in your solution.
 
 Both projects are now part of the Aspire orchestration. Here's a recap of all the changes that happened, some of which were done automatically by the tooling, when adding .NET Aspire to the solution:
 
 * An AppHost project is added. The project contains the orchestration code. It becomes the entry point for your app and is responsible for starting and stopping your app. It also manages the service discovery and connection string management.
 * A ServiceDefaults project is added. The project configures OpenTelemetry, adds default health check endpoints, and enables service discovery through HttpClient.
-* The solution's default startup project is changed to AppHost.
+* The solution's default startup project has now become to AppHost.
 * Dependencies on the projects enrolled in orchestration are added to the AppHost project.
 * The .NET Aspire Dashboard is added to your solution, which enables shortcuts to access all the project endpoints in your solution.
 * The dashboard adds logs, traces, and metrics for the projects in your solution.
-* In the **Store**'s Program.cs:
-  * Adds a call to `AddServiceDefaults` that enables the default OpenTelemetry, meters, and service discovery.
-  * Adds a call to `MapDefaultEndpoints` that enables the default endpoints, such as `/health` and `/alive`.
 
 Now we need to make sure that the **Store** can discover the **Products** backend URL through .NET Aspire's service discovery.
 
@@ -76,52 +115,129 @@ Now we need to make sure that the **Store** can discover the **Products** backen
 
 Service discovery is a way for developers to use logical names instead of physical addresses (IP address and port) to refer to external services. So instead of having to know the IP address and port of the **Products** backend, the **Store** can refer to it by its logical name, for example `products`.
 
-1. Open the **Program.cs** file from the **eShopLite.AppHost** project.
-1. Delete the 2 lines of code that add the **Store** and **Products** projects to the Aspire orchestration:
+1. Open the `AppHost.cs` file from the **eShopLite.AppHost** project.
+1. Add the following code lines between `var builder = DistributedApplication.CreateBuilder(args);` and `builder.Build().Run();`
 
     ```csharp
-    builder.AddProject<Projects.Store>("store");
-    builder.AddProject<Projects.Products>("products");
-    ```
+    var builder = DistributedApplication.CreateBuilder(args);
 
-1. Add the **Products** back in, this time storing it in a variable:
-
-    ```csharp
+    // 👇👇👇 Add 👇👇👇
     var products = builder.AddProject<Projects.Products>("products");
+
+    builder.AddProject<Projects.Store>("store")
+           .WithReference(products);
+    // 👆👆👆 Add 👆👆👆
+
+    builder.Build().Run();
     ```
 
-    This is naming the **Products** project as `products` so that it can be referred to by that name from other projects in the solution.
+   > This is naming the **Products** project as `products` so that it can be referred to by that name from other projects in the solution.
+   >
+   > Now when **Store** needs to invoke **Products**, it can refer to it by the logical name `products`. In other words, the URL of the **Products** backend is now `http://products`.
 
-1. Then add the **Store** to the Aspire orchestration and also include a reference to the **Products**:
+1. Open the `Program.cs` file from the **Products** project.
+1. Add the following code lines just above `var app = builder.Build();`.
 
     ```csharp
-    builder.AddProject<Projects.Store>("store").WithReference(products);
+    // 👇👇👇 Add 👇👇👇
+    builder.AddServiceDefaults();
+    // 👆👆👆 Add 👆👆👆
+
+    var app = builder.Build();
     ```
 
-    Now when **Store** needs to invoke **Products**, it can refer to it by the logical name `products`. In other words, the URL of the **Products** backend is now `http://products`.
+1. Add the following code lines just above `app.Run();`.
 
-1. Next update the **appSettings.json** in the **Store** project for the **ProductEndpoint** and **ProductEndpointHttps**:
+    ```csharp
+    // 👇👇👇 Add 👇👇👇
+    app.MapDefaultEndpoints();
+    // 👆👆👆 Add 👆👆👆
 
-    ```json
-    "ProductEndpoint": "http://products",
-    "ProductEndpointHttps": "https://products"
+    app.Run();
     ```
 
-1. Press **F5** or start debugging the application.
+1. Open the `Program.cs` file from the **Store** project.
+1. Add the following code lines just above `var app = builder.Build();`.
+
+    ```csharp
+    // 👇👇👇 Add 👇👇👇
+    builder.AddServiceDefaults();
+    // 👆👆👆 Add 👆👆👆
+
+    var app = builder.Build();
+    ```
+
+1. Add the following code lines just above `app.Run();`.
+
+    ```csharp
+    // 👇👇👇 Add 👇👇👇
+    app.MapDefaultEndpoints();
+    // 👆👆👆 Add 👆👆👆
+
+    app.Run();
+    ```
+
+1. Open the `appsettings.json` file from the **Store** project and remove those lines.
+
+    ```jsonc
+    {
+      "DetailedErrors": true,
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "AllowedHosts": "*",
+
+      // 👇👇👇 Remove 👇👇👇
+      "ProductEndpoint": "http://localhost:5228",
+      "ProductEndpointHttps": "https://localhost:7130"
+      // 👆👆👆 Remove 👆👆👆
+    }
+    ```
+
+1. Replace the code lines.
+
+    ```csharp
+    // Before
+    builder.Services.AddHttpClient<ProductService>(c =>
+    {
+        var url = builder.Configuration["ProductEndpoint"] ?? throw new InvalidOperationException("ProductEndpoint is not set");
+
+        c.BaseAddress = new(url);
+    });
+
+    // After
+    builder.Services.AddHttpClient<ProductService>(c =>
+    {
+        c.BaseAddress = new("https+http://products");
+    });
+    ```
+
+   > The **Products** backend is now referred as `products` because the **AppHost** project has already orchestrated it.
+
+1. Run the command to open the application.
+
+    ```bash
+    dotnet watch run --project ./eShopList.AppHost
+    ```
+
 1. The Aspire dashboard appears.
 
     ![Aspire Dashboard](images/aspire-dashboard.png)
 
    > **NOTE**: You may be asked to enter an authentication token to access to the dashboard.
-   > 
+   >
    > ![.NET Aspire dashboard login](./images/login.png)
-   > 
+   >
    > The token can be found in the terminal console. Copy and paste it to the field and click "Log in".
-   > 
+   >
    > ![.NET Aspire dashboard access token](./images/console-token.png)
 
 1. Click on the endpoint for the **store** project in the dashboard.
 1. A new tab appears with the same eShopLite application, but now the **Products** backend is being called through service discovery.
+1. Stop all apps by typing `CTRL`+`C` in the terminal
 
 ---
 
