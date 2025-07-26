@@ -76,7 +76,7 @@ We'll use .NET Aspire components to add Redis caching to the eShopLite applicati
     builder.AddProject<Projects.Store>("store")
            .WithReference(products)
            .WithReference(redis)
-           .WaitFor(products);
+           .WaitFor(products)
            .WaitFor(redis);
     ```
 
